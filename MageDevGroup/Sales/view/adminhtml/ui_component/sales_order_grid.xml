@@ -13,5 +13,12 @@
                 </item>
             </argument>
         </column>
+        <column name="product_name_and_sku">
+            <settings>
+                <sortable>false</sortable>
+                <filter>text</filter>
+                <label>Products</label>
+            </settings>
+        </column>
     </columns>
 </listing>
