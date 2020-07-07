@@ -2,7 +2,10 @@
 
 namespace MageDevGroup\Sales\Model\ResourceModel\Order\Grid;
 
-use Magento\Framework\DB\Sql\Expression;
+use Magento\Framework\Data\Collection\Db\FetchStrategyInterface as FetchStrategy;
+use Magento\Framework\Data\Collection\EntityFactoryInterface as EntityFactory;
+use Magento\Framework\Event\ManagerInterface as EventManager;
+use Psr\Log\LoggerInterface as Logger;
 
 /**
  * Order grid collection
@@ -10,20 +13,49 @@ use Magento\Framework\DB\Sql\Expression;
 class Collection extends \Magento\Sales\Model\ResourceModel\Order\Grid\Collection
 {
     /**
+     * @var OptimizationQuery
+     */
+    private $optimizationQuery;
+
+    /**
+     * Collection constructor.
+     * @param EntityFactory $entityFactory
+     * @param Logger $logger
+     * @param FetchStrategy $fetchStrategy
+     * @param EventManager $eventManager
+     * @param OptimizationQuery $optimizationQuery
+     * @param string $mainTable
+     * @param string $resourceModel
+     */
+    public function __construct(
+        EntityFactory $entityFactory,
+        Logger $logger,
+        FetchStrategy $fetchStrategy,
+        EventManager $eventManager,
+        OptimizationQuery $optimizationQuery,
+        $mainTable = 'sales_order_grid',
+        $resourceModel = \Magento\Sales\Model\ResourceModel\Order::class
+    ) {
+        parent::__construct($entityFactory, $logger, $fetchStrategy, $eventManager, $mainTable, $resourceModel);
+        $this->optimizationQuery = $optimizationQuery;
+    }
+
+    /**
+     * @return $this|Collection
+     */
+    protected function _renderOrders()
+    {
+        $this->optimizationQuery->renderOrders($this->getSelect());
+        return $this;
+    }
+
+    /**
      * @return void
      */
     protected function _renderFiltersBefore()
     {
-        $select = $this->getSelect();
-        $select->join(
-            ['tl' => 'sales_order_item'],
-            'tl.order_id=main_table.entity_id AND tl.product_type="simple"',
-            [
-                'order_id',
-                'product_name_and_sku' => new \Magento\Framework\DB\Sql\Expression('GROUP_CONCAT(DISTINCT sku, " / ", name)')
-            ]
-        );
-        $select->group('order_id');
-        return parent::_renderFiltersBefore();
+        parent::_renderOrders();
+        $this->optimizationQuery->optimize($this->getSelect());
+        parent::_renderFiltersBefore();
     }
 }
